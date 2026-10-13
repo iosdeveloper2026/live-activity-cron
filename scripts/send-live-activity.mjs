@@ -91,7 +91,10 @@ async function sendLiveActivity({ fcmToken, liveActivityToken, aps }) {
   if (res.ok) return { ok: true };
   const body = await res.json().catch(() => ({}));
   const code = body?.error?.details?.find((d) => d.errorCode)?.errorCode ?? body?.error?.status;
-  return { ok: false, status: res.status, code, invalidToken: ["UNREGISTERED", "INVALID_ARGUMENT"].includes(code) };
+  // FCM's message describes the problem without echoing tokens, so it's safe to log.
+  const message = String(body?.error?.message ?? "").slice(0, 200);
+  // Only UNREGISTERED means the token is dead; INVALID_ARGUMENT can also be a payload problem.
+  return { ok: false, status: res.status, code, message, invalidToken: code === "UNREGISTERED" };
 }
 
 // ---------- Per device ----------
@@ -126,7 +129,7 @@ async function processDevice(doc, config, nowS) {
     const result = await sendLiveActivity({ fcmToken: device.fcmToken, liveActivityToken: activity.pushToken, aps });
     if (!result.ok) {
       stats.failed++;
-      console.log(`update failed: HTTP ${result.status} ${result.code ?? ""}`);
+      console.log(`update failed: HTTP ${result.status} ${result.code ?? ""} ${result.message}`);
       if (result.invalidToken) {
         stats.tokensRemoved++;
         await stateRef.set({ endedActivityId: activity.activityId }, { merge: true });
@@ -159,7 +162,7 @@ async function processDevice(doc, config, nowS) {
   const result = await sendLiveActivity({ fcmToken: device.fcmToken, liveActivityToken: device.startToken, aps });
   if (!result.ok) {
     stats.failed++;
-    console.log(`start failed: HTTP ${result.status} ${result.code ?? ""}`);
+    console.log(`start failed: HTTP ${result.status} ${result.code ?? ""} ${result.message}`);
     if (result.invalidToken) {
       stats.tokensRemoved++;
       await doc.ref.update({ startToken: FieldValue.delete() });
