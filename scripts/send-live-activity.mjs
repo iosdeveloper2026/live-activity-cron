@@ -13,6 +13,9 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getRemoteConfig } from "firebase-admin/remote-config";
 
 const DRY_RUN = process.env.DRY_RUN === "1";
+// Start a fresh Live Activity every N minutes (ending the previous one if it's still running).
+// Set in the workflow file or as the repo variable REPEAT_EVERY_MINUTES.
+const REPEAT_EVERY_S = Math.max(5, Number(process.env.REPEAT_EVERY_MINUTES) || 30) * 60;
 const ACTIVITY_MAX_AGE_S = 7.5 * 3600; // iOS stops accepting updates after 8 hours
 const APPLE_EPOCH_OFFSET_S = 978307200; // Swift Date decodes as seconds since 2001-01-01
 const ATTRIBUTES_TYPE = "DeliveryAttributes";
@@ -109,22 +112,28 @@ async function processDevice(doc, config, nowS) {
 
   if (!device.fcmToken) return stats.skipped++;
 
-  // 1. A Live Activity is running: advance it one stage, or end it.
-  if (activity?.status === "active" && activity.pushToken) {
-    if (state.endedActivityId === activity.activityId) return stats.skipped++;
+  const repeatDue = nowS - (state.lastStartAt ?? 0) >= REPEAT_EVERY_S;
+  const startEnabled = cron.startEnabled ?? true;
+  const canStart = startEnabled && Boolean(device.startToken);
+  const running =
+    activity?.status === "active" && activity.pushToken && state.endedActivityId !== activity.activityId;
 
+  // 1. A Live Activity is running: advance it one stage, or end it.
+  if (running) {
     const current = state.activityId === activity.activityId ? state.stage : activity.stageIndex ?? 0;
     const tooOld = nowS - (activity.startedAt ?? nowS) > ACTIVITY_MAX_AGE_S;
-    const next = tooOld ? current : Math.min(current + 1, last);
+    // Time for the next repeat: end this one now so a fresh one can start below.
+    const replace = repeatDue && canStart;
+    const next = tooOld || replace ? current : Math.min(current + 1, last);
     const orderNumber = activity.orderNumber ?? "";
-    const end = tooOld || next >= last;
+    const end = tooOld || replace || next >= last;
 
     const aps = {
       timestamp: nowS,
       event: end ? "end" : "update",
       "content-state": contentState(config, next, orderNumber, nowS),
     };
-    if (end) aps["dismissal-date"] = nowS + (cron.dismissAfterSeconds ?? 900);
+    if (end) aps["dismissal-date"] = replace ? nowS : nowS + (cron.dismissAfterSeconds ?? 900);
 
     const result = await sendLiveActivity({ fcmToken: device.fcmToken, liveActivityToken: activity.pushToken, aps });
     if (!result.ok) {
@@ -134,20 +143,20 @@ async function processDevice(doc, config, nowS) {
         stats.tokensRemoved++;
         await stateRef.set({ endedActivityId: activity.activityId }, { merge: true });
       }
-      return;
+      if (!replace) return;
+    } else {
+      end ? stats.ended++ : stats.updated++;
+      await stateRef.set(
+        { activityId: activity.activityId, stage: next, endedActivityId: end ? activity.activityId : null, lastPushAt: nowS },
+        { merge: true },
+      );
     }
-    end ? stats.ended++ : stats.updated++;
-    await stateRef.set(
-      { activityId: activity.activityId, stage: next, endedActivityId: end ? activity.activityId : null, lastPushAt: nowS },
-      { merge: true },
-    );
-    return;
+    if (!replace) return;
   }
 
-  // 2. Nothing running: start one remotely (iOS 17.2+ push-to-start), at most every N minutes.
-  const startEnabled = cron.startEnabled ?? true;
-  const everyS = (cron.startEveryMinutes ?? 60) * 60;
-  if (!startEnabled || !device.startToken || nowS - (state.lastStartAt ?? 0) < everyS) return stats.skipped++;
+  // 2. Nothing running (or the previous one was just ended): start a fresh one remotely
+  //    (iOS 17.2+ push-to-start), once every REPEAT_EVERY_MINUTES.
+  if (!canStart || !repeatDue) return stats.skipped++;
 
   const orderNumber = "#" + Math.floor(1000 + Math.random() * 9000);
   const first = contentState(config, 0, orderNumber, nowS);
@@ -174,6 +183,8 @@ async function processDevice(doc, config, nowS) {
 }
 
 // ---------- Main ----------
+
+console.log(`repeat every ${REPEAT_EVERY_S / 60} min`);
 
 const nowS = Math.floor(Date.now() / 1000);
 const config = await loadConfig();

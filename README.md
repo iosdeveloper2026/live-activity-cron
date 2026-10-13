@@ -1,20 +1,27 @@
 # Live Activity cron
 
 Scheduled GitHub Actions job that starts, updates and ends the iOS app's Live Activity through
-Firebase Cloud Messaging (FCM). It runs about every 15 minutes and can also be run on demand.
+Firebase Cloud Messaging (FCM). It runs about every 5 minutes and can also be run on demand.
 
 ## What each run does
 
 1. Reads the Live Activity content from Firebase Remote Config (`live_activity_config`).
 2. Reads device tokens from Firestore (`liveActivityDevices`), written by the iOS app.
 3. For each device:
+   - **Repeat is due** (`REPEAT_EVERY_MINUTES` since the last start): end the running Live Activity,
+     if any, and start a fresh one with the device's push-to-start token (iOS 17.2+).
    - **A Live Activity is running:** advance it one stage (`update`), or `end` it at the last stage
      or before iOS's 8-hour limit.
-   - **Nothing is running:** start one with the device's push-to-start token (iOS 17.2+), at most
-     once every `cron.startEveryMinutes` (default 60).
 4. Saves each device's progress in Firestore (`liveActivityCronState`).
 
 The log prints only counts, for example `{"devices":1,"started":0,"updated":1,"ended":0,...}`.
+
+## Repeat interval
+
+`REPEAT_EVERY_MINUTES` (default **30**) sets how often a fresh Live Activity starts. Change it in
+Settings → Secrets and variables → Actions → **Variables** → `REPEAT_EVERY_MINUTES`, with no code change.
+Runs happen about every 5 minutes, so the interval is rounded up to the next run, and each run
+moves a running Live Activity forward one stage.
 
 ## Setup
 
@@ -31,7 +38,6 @@ The log prints only counts, for example `{"devices":1,"started":0,"updated":1,"e
 ```json
 "cron": {
   "startEnabled": true,
-  "startEveryMinutes": 60,
   "dismissAfterSeconds": 900
 }
 ```

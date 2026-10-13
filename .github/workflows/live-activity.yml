@@ -2,7 +2,7 @@ name: Live Activity cron
 
 on:
   schedule:
-    - cron: "*/15 * * * *" # every ~15 minutes (UTC); GitHub may run it late
+    - cron: "*/5 * * * *" # every ~5 minutes (GitHub's minimum); runs can be late
   workflow_dispatch: # "Run workflow" button for testing
 
 permissions:
@@ -26,3 +26,6 @@ jobs:
       - run: node scripts/send-live-activity.mjs
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # Start a fresh Live Activity every N minutes. Override with the repo variable
+          # REPEAT_EVERY_MINUTES (Settings -> Secrets and variables -> Actions -> Variables).
+          REPEAT_EVERY_MINUTES: ${{ vars.REPEAT_EVERY_MINUTES || '30' }}
