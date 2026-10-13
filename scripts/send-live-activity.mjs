@@ -21,6 +21,9 @@ const APPLE_EPOCH_OFFSET_S = 978307200; // Swift Date decodes as seconds since 2
 // Swift type name of the app's ActivityAttributes. LiveActivityKit apps use "LiveActivityAttributes";
 // set the repo variable ATTRIBUTES_TYPE. The original demo app uses "DeliveryAttributes".
 const ATTRIBUTES_TYPE = process.env.ATTRIBUTES_TYPE || "LiveActivityAttributes";
+// Only send to devices of this app (several apps can share one Firebase project).
+// Devices saved without a bundleId (older app builds) are included.
+const APP_BUNDLE_ID = process.env.APP_BUNDLE_ID || "";
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT ?? "null");
 if (!serviceAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT secret is missing");
@@ -168,6 +171,7 @@ async function processDevice(doc, baseConfig, nowS) {
   const cron = config.cron ?? {};
 
   if (!device.fcmToken) return stats.skipped++;
+  if (APP_BUNDLE_ID && device.bundleId && device.bundleId !== APP_BUNDLE_ID) return stats.skipped++;
 
   const repeatDue = nowS - (state.lastStartAt ?? 0) >= REPEAT_EVERY_S;
   const startEnabled = cron.startEnabled ?? true;

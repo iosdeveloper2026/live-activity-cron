@@ -34,6 +34,7 @@ Then add the `FIREBASE_SERVICE_ACCOUNT` secret and these repo variables:
 |---|---|---|
 | `REPEAT_EVERY_MINUTES` | 30 | How often a fresh Live Activity starts |
 | `ATTRIBUTES_TYPE` | `LiveActivityAttributes` | Swift type name of the app's ActivityAttributes |
+| `APP_BUNDLE_ID` | (empty: all devices) | Only send to this app's devices, when several apps share one Firebase project |
 
 ## Repeat interval
 

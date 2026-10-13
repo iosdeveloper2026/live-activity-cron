@@ -31,3 +31,5 @@ jobs:
           REPEAT_EVERY_MINUTES: ${{ vars.REPEAT_EVERY_MINUTES || '30' }}
           # Swift type name of the app's ActivityAttributes (LiveActivityKit: LiveActivityAttributes).
           ATTRIBUTES_TYPE: ${{ vars.ATTRIBUTES_TYPE || 'LiveActivityAttributes' }}
+          # Only send to this app's devices when several apps share the Firebase project.
+          APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
