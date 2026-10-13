@@ -81,6 +81,7 @@ function contentState(config, stageIndex, orderNumber, nowS) {
     progress: count > 1 ? stageIndex / (count - 1) : 1,
     isFinal: stageIndex === count - 1,
     showStages: showsStages(config),
+    titlePosition: config.titlePosition ?? "below",
   };
 }
 
