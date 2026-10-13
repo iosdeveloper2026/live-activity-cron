@@ -11,7 +11,8 @@ Firebase Cloud Messaging (FCM). It runs about every 5 minutes and can also be ru
    - **Repeat is due** (`REPEAT_EVERY_MINUTES` since the last start): end the running Live Activity,
      if any, and start a fresh one with the device's push-to-start token (iOS 17.2+).
    - **A Live Activity is running:** advance it one stage (`update`), or `end` it at the last stage
-     or before iOS's 8-hour limit.
+     or before iOS's 8-hour limit. With `"showStages": false` it's a static image + title card,
+     so it's left as is until the next repeat.
 4. Saves each device's progress in Firestore (`liveActivityCronState`).
 
 The log prints only counts, for example `{"devices":1,"started":0,"updated":1,"ended":0,...}`.

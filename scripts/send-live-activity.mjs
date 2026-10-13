@@ -47,10 +47,21 @@ function imageFileName(url, size) {
   return `la-${size}-${hash.toString(16)}.jpg`;
 }
 
+/** Never empty, matching LiveActivityConfig.effectiveStages in the app. */
+function stagesOf(config) {
+  return config.stages?.length ? config.stages : [{ title: "", status: "", etaMinutes: 0 }];
+}
+
+/** `showStages: false` (or no stages): a static image + title card that only changes on repeat. */
+function showsStages(config) {
+  return config.showStages !== false && Boolean(config.stages?.length);
+}
+
 function contentState(config, stageIndex, orderNumber, nowS) {
-  const stage = config.stages[stageIndex];
+  const stages = stagesOf(config);
+  const stage = stages[Math.min(Math.max(stageIndex, 0), stages.length - 1)];
   const fill = (s) => (s ?? "").replaceAll("{order}", orderNumber).replaceAll("{name}", config.recipientName ?? "");
-  const count = config.stages.length;
+  const count = stages.length;
   const bannerUrl = config.bannerImageUrl || config.imageUrl;
   return {
     brandName: fill(config.brandName),
@@ -69,6 +80,7 @@ function contentState(config, stageIndex, orderNumber, nowS) {
     eta: nowS + stage.etaMinutes * 60 - APPLE_EPOCH_OFFSET_S,
     progress: count > 1 ? stageIndex / (count - 1) : 1,
     isFinal: stageIndex === count - 1,
+    showStages: showsStages(config),
   };
 }
 
@@ -107,7 +119,7 @@ async function processDevice(doc, config, nowS) {
   const stateRef = db.collection("liveActivityCronState").doc(doc.id);
   const state = (await stateRef.get()).data() ?? {};
   const activity = device.activity;
-  const last = config.stages.length - 1;
+  const last = stagesOf(config).length - 1;
   const cron = config.cron ?? {};
 
   if (!device.fcmToken) return stats.skipped++;
@@ -124,6 +136,8 @@ async function processDevice(doc, config, nowS) {
     const tooOld = nowS - (activity.startedAt ?? nowS) > ACTIVITY_MAX_AGE_S;
     // Time for the next repeat: end this one now so a fresh one can start below.
     const replace = repeatDue && canStart;
+    // Static card (no stages): nothing to advance; leave it until the repeat or the 8-hour limit.
+    if (!showsStages(config) && !replace && !tooOld) return stats.skipped++;
     const next = tooOld || replace ? current : Math.min(current + 1, last);
     const orderNumber = activity.orderNumber ?? "";
     const end = tooOld || replace || next >= last;
