@@ -47,6 +47,35 @@ function imageFileName(url, size) {
   return `la-${size}-${hash.toString(16)}.jpg`;
 }
 
+// ---------- Content rotation (mirrors LiveActivityConfig.withContent / nextContentIndex) ----------
+
+const CONTENT_FIELDS = [
+  "brandName", "title", "subtitle", "imageUrl", "bannerImageUrl", "imageStyle", "symbol",
+  "accentColor", "showStages", "titlePosition", "showTimer", "timerMinutes",
+];
+
+/** The config with `contents[index]` applied on top; unchanged when there are no items. */
+function withContent(config, index) {
+  const item = Number.isInteger(index) ? config.contents?.[index] : undefined;
+  if (!item) return config;
+  const merged = { ...config };
+  for (const key of CONTENT_FIELDS) if (item[key] !== undefined && item[key] !== null) merged[key] = item[key];
+  return merged;
+}
+
+/** Next card: the one after `previous` (sequential) or a random different one. */
+function nextContentIndex(config, previous) {
+  const count = config.contents?.length ?? 0;
+  if (count === 0) return null;
+  if (count === 1) return 0;
+  if (config.rotation === "random") {
+    let next = Math.floor(Math.random() * count);
+    if (next === previous) next = (next + 1) % count;
+    return next;
+  }
+  return Number.isInteger(previous) ? (previous + 1) % count : 0;
+}
+
 /** Never empty, matching LiveActivityConfig.effectiveStages in the app. */
 function stagesOf(config) {
   return config.stages?.length ? config.stages : [{ title: "", status: "", etaMinutes: 0 }];
@@ -126,10 +155,12 @@ async function sendLiveActivity({ fcmToken, liveActivityToken, aps }) {
 
 // ---------- Per device ----------
 
-async function processDevice(doc, config, nowS) {
+async function processDevice(doc, baseConfig, nowS) {
   const device = doc.data();
   const stateRef = db.collection("liveActivityCronState").doc(doc.id);
   const state = (await stateRef.get()).data() ?? {};
+  // The running card keeps the content it started with.
+  let config = withContent(baseConfig, state.contentIndex);
   const activity = device.activity;
   const last = stagesOf(config).length - 1;
   const cron = config.cron ?? {};
@@ -184,6 +215,8 @@ async function processDevice(doc, config, nowS) {
   //    (iOS 17.2+ push-to-start), once every REPEAT_EVERY_MINUTES.
   if (!canStart || !repeatDue) return stats.skipped++;
 
+  const contentIndex = nextContentIndex(baseConfig, state.contentIndex);
+  config = withContent(baseConfig, contentIndex);
   const orderNumber = "#" + Math.floor(1000 + Math.random() * 9000);
   const first = contentState(config, 0, orderNumber, nowS);
   const aps = {
@@ -205,7 +238,7 @@ async function processDevice(doc, config, nowS) {
     return;
   }
   stats.started++;
-  await stateRef.set({ lastStartAt: nowS, activityId: null, stage: 0 }, { merge: true });
+  await stateRef.set({ lastStartAt: nowS, activityId: null, stage: 0, contentIndex }, { merge: true });
 }
 
 // ---------- Main ----------

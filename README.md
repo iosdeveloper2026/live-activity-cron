@@ -15,6 +15,13 @@ Firebase Cloud Messaging (FCM). It runs about every 5 minutes and can also be ru
      so it's left as is until the next repeat.
 4. Saves each device's progress in Firestore (`liveActivityCronState`).
 
+## Rotating content
+
+Add a `contents` array to `live_activity_config`. Each item is one card and overrides only the
+fields it sets (`title`, `subtitle`, `bannerImageUrl`, `accentColor`, `timerMinutes`, ...). Each fresh
+Live Activity takes the next item: `"rotation": "sequential"` goes in order, `"random"` picks a random
+different one. A running card keeps its content until it's replaced.
+
 The log prints only counts, for example `{"devices":1,"started":0,"updated":1,"ended":0,...}`.
 
 ## Repeat interval
