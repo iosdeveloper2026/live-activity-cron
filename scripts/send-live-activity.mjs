@@ -18,7 +18,9 @@ const DRY_RUN = process.env.DRY_RUN === "1";
 const REPEAT_EVERY_S = Math.max(5, Number(process.env.REPEAT_EVERY_MINUTES) || 30) * 60;
 const ACTIVITY_MAX_AGE_S = 7.5 * 3600; // iOS stops accepting updates after 8 hours
 const APPLE_EPOCH_OFFSET_S = 978307200; // Swift Date decodes as seconds since 2001-01-01
-const ATTRIBUTES_TYPE = "DeliveryAttributes";
+// Swift type name of the app's ActivityAttributes. LiveActivityKit apps use "LiveActivityAttributes";
+// set the repo variable ATTRIBUTES_TYPE. The original demo app uses "DeliveryAttributes".
+const ATTRIBUTES_TYPE = process.env.ATTRIBUTES_TYPE || "LiveActivityAttributes";
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT ?? "null");
 if (!serviceAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT secret is missing");

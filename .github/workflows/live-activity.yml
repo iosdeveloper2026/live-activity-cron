@@ -29,3 +29,5 @@ jobs:
           # Start a fresh Live Activity every N minutes. Override with the repo variable
           # REPEAT_EVERY_MINUTES (Settings -> Secrets and variables -> Actions -> Variables).
           REPEAT_EVERY_MINUTES: ${{ vars.REPEAT_EVERY_MINUTES || '30' }}
+          # Swift type name of the app's ActivityAttributes (LiveActivityKit: LiveActivityAttributes).
+          ATTRIBUTES_TYPE: ${{ vars.ATTRIBUTES_TYPE || 'LiveActivityAttributes' }}

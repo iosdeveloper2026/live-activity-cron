@@ -24,6 +24,17 @@ different one. A running card keeps its content until it's replaced.
 
 The log prints only counts, for example `{"devices":1,"started":0,"updated":1,"ended":0,...}`.
 
+## Use as a template
+
+This repo is a GitHub template: click **Use this template** (or
+`gh repo create <owner>/<app>-live-activity-cron --public --template iosdeveloper2026/live-activity-cron`).
+Then add the `FIREBASE_SERVICE_ACCOUNT` secret and these repo variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `REPEAT_EVERY_MINUTES` | 30 | How often a fresh Live Activity starts |
+| `ATTRIBUTES_TYPE` | `LiveActivityAttributes` | Swift type name of the app's ActivityAttributes |
+
 ## Repeat interval
 
 `REPEAT_EVERY_MINUTES` (default **30**) sets how often a fresh Live Activity starts. Change it in
