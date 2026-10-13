@@ -57,6 +57,16 @@ function showsStages(config) {
   return config.showStages !== false && Boolean(config.stages?.length);
 }
 
+/** Countdown on the image-only card (`showTimer` + `timerMinutes`), when stages are hidden. */
+function showsTimer(config) {
+  return !showsStages(config) && config.showTimer === true;
+}
+
+/** Same rule as DeliveryState.of: the image-only timer uses timerMinutes, stages use their own ETA. */
+function etaMinutesFor(config, stage) {
+  return config.showStages === false && config.showTimer === true ? config.timerMinutes ?? 0 : stage.etaMinutes ?? 0;
+}
+
 function contentState(config, stageIndex, orderNumber, nowS) {
   const stages = stagesOf(config);
   const stage = stages[Math.min(Math.max(stageIndex, 0), stages.length - 1)];
@@ -77,11 +87,12 @@ function contentState(config, stageIndex, orderNumber, nowS) {
     stageTitle: fill(stage.title),
     statusText: fill(stage.status),
     stageSymbol: stage.symbol || config.symbol || "bag.fill",
-    eta: nowS + stage.etaMinutes * 60 - APPLE_EPOCH_OFFSET_S,
+    eta: nowS + etaMinutesFor(config, stage) * 60 - APPLE_EPOCH_OFFSET_S,
     progress: count > 1 ? stageIndex / (count - 1) : 1,
     isFinal: stageIndex === count - 1,
     showStages: showsStages(config),
     titlePosition: config.titlePosition ?? "below",
+    showTimer: showsTimer(config),
   };
 }
 
