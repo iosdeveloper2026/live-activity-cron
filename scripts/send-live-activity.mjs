@@ -172,6 +172,8 @@ async function processDevice(doc, baseConfig, nowS) {
 
   if (!device.fcmToken) return stats.skipped++;
   if (APP_BUNDLE_ID && device.bundleId && device.bundleId !== APP_BUNDLE_ID) return stats.skipped++;
+  // Same app, different Live Activity type (e.g. an app's own Live Activity next to LiveActivityKit).
+  if (device.attributesType && device.attributesType !== ATTRIBUTES_TYPE) return stats.skipped++;
 
   const repeatDue = nowS - (state.lastStartAt ?? 0) >= REPEAT_EVERY_S;
   const startEnabled = cron.startEnabled ?? true;
